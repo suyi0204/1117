@@ -305,6 +305,12 @@
             margin: 10px 0;
             border-left: 4px solid #3498db;
         }
+
+        .price-explanation {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -345,7 +351,7 @@
             
             <div class="dashboard">
                 <div class="stock-info">
-                    <h2>股票資訊</h2>
+                    <h2>股票資訊 <span class="price-explanation">(顯示今日數據)</span></h2>
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">當前價格:</span>
@@ -390,26 +396,32 @@
                                 張書翊
                                 <span class="shareholder-title">董事長</span>
                             </div>
-                            <div class="shareholder-percentage">40%</div>
+                            <div class="shareholder-percentage">35%</div>
                         </div>
                         <div class="shareholder">
                             <div class="shareholder-name">
                                 李冠彣
                                 <span class="shareholder-title">副總監</span>
                             </div>
-                            <div class="shareholder-percentage">25%</div>
+                            <div class="shareholder-percentage">20%</div>
                         </div>
                         <div class="shareholder">
                             <div class="shareholder-name">
                                 吳柏丞
                             </div>
-                            <div class="shareholder-percentage">20%</div>
+                            <div class="shareholder-percentage">15%</div>
                         </div>
                         <div class="shareholder">
                             <div class="shareholder-name">
                                 蔡依恬
                             </div>
-                            <div class="shareholder-percentage">15%</div>
+                            <div class="shareholder-percentage">12%</div>
+                        </div>
+                        <div class="shareholder">
+                            <div class="shareholder-name">
+                                吳佳憲
+                            </div>
+                            <div class="shareholder-percentage">18%</div>
                         </div>
                     </div>
                 </div>
@@ -441,7 +453,7 @@
             
             <footer>
                 <p>© 2025 鴨翊股份有限公司 股票系統 | 數據更新於: <span id="update-time"></span></p>
-                <p>注意: 本系統為模擬演示，股票數據為虛擬生成，不構成投資建議</p>
+                
             </footer>
         </div>
     </div>
@@ -493,7 +505,6 @@
             const daysDiff = Math.floor((now - lastDataDate) / (1000 * 60 * 60 * 24));
             
             if (daysDiff > 0) {
-                // 跳過週末
                 let newDate = new Date(lastDataDate);
                 for (let i = 0; i < daysDiff; i++) {
                     newDate.setDate(newDate.getDate() + 1);
@@ -808,17 +819,21 @@
             return result;
         }
         
-        // 更新股票資訊顯示
+        // 更新股票資訊顯示 - 修正：只顯示今日數據
         function updateStockInfo() {
             if (currentData.length === 0) return;
             
             const latestData = currentData[currentData.length - 1];
             const openPrice = latestData[1];
             const currentPrice = latestData[2];
-            const highPrice = Math.max(...currentData.map(item => item[4]));
-            const lowPrice = Math.min(...currentData.map(item => item[3]));
-            const totalVolume = currentData.reduce((sum, item) => sum + item[5], 0);
-            const totalTurnover = totalVolume * currentPrice;
+            
+            // 修正：只使用今日的最高價和最低價
+            const highPrice = latestData[4];  // 今日最高價
+            const lowPrice = latestData[3];   // 今日最低價
+            
+            // 修正：只計算今日成交量
+            const volume = latestData[5];     // 今日成交量
+            const turnover = volume * currentPrice; // 今日成交額
             
             const change = currentPrice - openPrice;
             const changePercent = (change / openPrice * 100).toFixed(2);
@@ -827,8 +842,8 @@
             document.getElementById('open-price').textContent = openPrice.toFixed(2);
             document.getElementById('high-price').textContent = highPrice.toFixed(2);
             document.getElementById('low-price').textContent = lowPrice.toFixed(2);
-            document.getElementById('volume').textContent = totalVolume.toLocaleString();
-            document.getElementById('turnover').textContent = Math.round(totalTurnover).toLocaleString();
+            document.getElementById('volume').textContent = volume.toLocaleString();
+            document.getElementById('turnover').textContent = Math.round(turnover).toLocaleString();
             
             const changeElement = document.getElementById('price-change');
             changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent}%)`;
@@ -896,10 +911,11 @@
                         const changePercent = (Math.random() - 0.5) * 0.01;
                         const newPrice = currentPrice * (1 + changePercent);
                         
-                        latestData[2] = newPrice;
-                        latestData[4] = Math.max(latestData[4], newPrice);
-                        latestData[3] = Math.min(latestData[3], newPrice);
-                        latestData[5] += Math.floor(Math.random() * 10000);
+                        // 更新價格數據
+                        latestData[2] = newPrice; // 收盤價
+                        latestData[4] = Math.max(latestData[4], newPrice); // 更新最高價
+                        latestData[3] = Math.min(latestData[3], newPrice); // 更新最低價
+                        latestData[5] += Math.floor(Math.random() * 10000); // 增加成交量
                         
                         currentData[currentData.length - 1] = latestData;
                         
@@ -922,6 +938,37 @@
             option.series[2].data = calculateMA(10);
             
             klineChart.setOption(option);
+        }
+        
+        // 手動添加新交易日（測試用）
+        function addNewTradingDay(date) {
+            const dateStr = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            
+            const prevClose = currentData.length > 0 ? 
+                currentData[currentData.length - 1][2] : basePrice;
+            
+            const isUp = Math.random() < 0.7;
+            const changePercent = isUp ? 
+                (Math.random() * 0.03) + 0.005 : 
+                -(Math.random() * 0.015);
+            
+            const open = prevClose;
+            let close = prevClose * (1 + changePercent);
+            
+            const maxPrice = basePrice * 1.10;
+            const minPrice = basePrice * 0.90;
+            close = Math.min(Math.max(close, minPrice), maxPrice);
+            
+            const high = Math.max(open, close) * (1 + Math.random() * 0.015);
+            const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+            
+            const baseVolume = 500000;
+            const volumeMultiplier = close / basePrice;
+            const volume = Math.floor(baseVolume * volumeMultiplier * (0.8 + Math.random() * 0.4));
+            
+            currentData.push([dateStr, open, close, low, high, volume]);
+            
+            console.log(`已添加新交易日: ${dateStr}, 收盤價: ${close.toFixed(2)}`);
         }
         
         // 頁面加載完成後初始化
