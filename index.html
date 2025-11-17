@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鴨翊股份有限公司 - 股票系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 50px auto;
+            text-align: center;
+        }
+        
+        .login-container h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .login-container input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        
+        .login-container button:hover {
+            background: #2980b9;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .stock-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-label {
+            color: #7f8c8d;
+        }
+        
+        .price-up {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .price-down {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        #kline-chart {
+            width: 100%;
+            height: 500px;
+        }
+        
+        .shareholders {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .shareholder-list {
+            margin-top: 15px;
+        }
+        
+        .shareholder {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .shareholder-name {
+            display: flex;
+            align-items: center;
+        }
+        
+        .shareholder-title {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-left: 8px;
+        }
+        
+        .shareholder-percentage {
+            font-weight: bold;
+            color: #e67e22;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .time-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .time-btn {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+            padding: 8px 15px;
+        }
+        
+        .time-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logout-btn {
+            background: #e74c3c;
+            padding: 5px 10px;
+            font-size: 0.9rem;
+        }
+        
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        
+        .gift-announcement {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            text-align: center;
+            border-left: 5px solid #e67e22;
+        }
+        
+        .gift-announcement h3 {
+            color: #e67e22;
+            margin-bottom: 10px;
+        }
+        
+        .main-content {
+            display: none;
+        }
+        
+        .stock-code {
+            font-size: 1.5rem;
+            color: #3498db;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 登入頁面 -->
+        <div id="login-page" class="login-container">
+            <h2>鴨翊股份有限公司股票系統</h2>
+            <p>請輸入您的姓名以查看即時股價資訊</p>
+            <input type="text" id="username" placeholder="請輸入您的姓名">
+            <button id="login-btn">進入系統</button>
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #7f8c8d;">提示: 只需輸入姓名即可登入系統</p>
+        </div>
+        
+        <!-- 主內容頁面 -->
+        <div id="main-content" class="main-content">
+            <div class="user-info">
+                <span id="welcome-user">歡迎, 用戶</span>
+                <button class="logout-btn" id="logout-btn">登出</button>
+            </div>
+            
+            <header>
+                <h1>鴨翊股份有限公司 <span class="stock-code">4617083007</span></h1>
+                <div class="subtitle">2025年度 公司股票即時K線圖系統</div>
+            </header>
+            
+            <div class="gift-announcement">
+                <h3>股東會紀念品公告</h3>
+                <p>2025年度股東會紀念品即將公布，敬請期待！</p>
+            </div>
+            
+            <div class="dashboard">
+                <div class="stock-info">
+                    <h2>股票資訊</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">當前價格:</span>
+                            <span id="current-price" class="price-up">10.00</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">漲跌:</span>
+                            <span id="price-change" class="price-up">+0.00 (0.00%)</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">今日開盤:</span>
+                            <span id="open-price">10.00</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">今日最高:</span>
+                            <span id="high-price">10.00</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">今日最低:</span>
+                            <span id="low-price">10.00</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">成交量:</span>
+                            <span id="volume">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">成交額:</span>
+                            <span id="turnover">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">漲跌幅限制:</span>
+                            <span>±10%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shareholders">
+                    <h2>主要股東</h2>
+                    <div class="shareholder-list">
+                        <div class="shareholder">
+                            <div class="shareholder-name">
+                                張書翊
+                                <span class="shareholder-title">董事長</span>
+                            </div>
+                            <div class="shareholder-percentage">40%</div>
+                        </div>
+                        <div class="shareholder">
+                            <div class="shareholder-name">
+                                李冠彣
+                                <span class="shareholder-title">副總監</span>
+                            </div>
+                            <div class="shareholder-percentage">25%</div>
+                        </div>
+                        <div class="shareholder">
+                            <div class="shareholder-name">
+                                吳柏丞
+                            </div>
+                            <div class="shareholder-percentage">20%</div>
+                        </div>
+                        <div class="shareholder">
+                            <div class="shareholder-name">
+                                蔡依恬
+                            </div>
+                            <div class="shareholder-percentage">15%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="time-controls">
+                <button class="time-btn active" data-range="1D">1日</button>
+                <button class="time-btn" data-range="1W">1週</button>
+                <button class="time-btn" data-range="1M">1月</button>
+                <button class="time-btn" data-range="3M">3月</button>
+                <button class="time-btn" data-range="1Y">1年</button>
+            </div>
+            
+            <div class="chart-container">
+                <div id="kline-chart"></div>
+            </div>
+            
+            <div class="controls">
+                <button id="play-pause">暫停更新</button>
+                <button id="reset-chart">重置圖表</button>
+            </div>
+            
+            <footer>
+                <p>© 2025 鴨翊股份有限公司 股票系統 | 數據更新於: <span id="update-time"></span></p>
+                <p>注意: 本系統為模擬演示，股票數據為虛擬生成，不構成投資建議</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // 初始化變量
+        let klineChart;
+        let isPlaying = true;
+        let currentRange = '1D';
+        let basePrice = 10.0; // 從10元開始
+        let currentData = [];
+        let updateInterval;
+        let currentUser = null;
+        
+        // 初始化圖表
+        function initChart() {
+            const chartDom = document.getElementById('kline-chart');
+            klineChart = echarts.init(chartDom);
+            
+            // 生成初始數據
+            generateInitialData();
+            
+            // 設置圖表選項
+            const option = {
+                title: {
+                    text: '鴨翊股份有限公司 K線圖 (4617083007)',
+                    left: 'center',
+                    textStyle: {
+                        color: '#2c3e50'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    },
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderColor: '#3498db',
+                    textStyle: {
+                        color: '#333'
+                    },
+                    formatter: function (params) {
+                        const data = params[0].data;
+                        return `
+                            <div>日期: ${data[0]}</div>
+                            <div>開盤: ${data[1]}</div>
+                            <div>收盤: ${data[2]}</div>
+                            <div>最低: ${data[3]}</div>
+                            <div>最高: ${data[4]}</div>
+                            <div>成交量: ${data[5]}</div>
+                        `;
+                    }
+                },
+                legend: {
+                    data: ['K線', 'MA5', 'MA10'],
+                    top: 30,
+                    textStyle: {
+                        color: '#2c3e50'
+                    }
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: currentData.map(item => item[0]),
+                    scale: true,
+                    boundaryGap: false,
+                    axisLine: { 
+                        onZero: false,
+                        lineStyle: {
+                            color: '#7f8c8d'
+                        }
+                    },
+                    axisLabel: {
+                        color: '#2c3e50'
+                    },
+                    splitLine: {
+                        show: false
+                    }
+                },
+                yAxis: {
+                    scale: true,
+                    splitArea: {
+                        show: true
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: '#7f8c8d'
+                        }
+                    },
+                    axisLabel: {
+                        color: '#2c3e50'
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                },
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        start: 80,
+                        end: 100
+                    },
+                    {
+                        show: true,
+                        type: 'slider',
+                        top: '90%',
+                        start: 80,
+                        end: 100,
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        dataBackground: {
+                            lineStyle: {
+                                color: '#3498db'
+                            },
+                            areaStyle: {
+                                color: '#3498db'
+                            }
+                        },
+                        textStyle: {
+                            color: '#2c3e50'
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: 'K線',
+                        type: 'candlestick',
+                        data: currentData.map(item => [item[1], item[2], item[3], item[4]]),
+                        itemStyle: {
+                            color: '#e74c3c',
+                            color0: '#2ecc71',
+                            borderColor: '#e74c3c',
+                            borderColor0: '#2ecc71'
+                        }
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: calculateMA(5),
+                        smooth: true,
+                        lineStyle: {
+                            width: 1,
+                            color: '#e67e22'
+                        }
+                    },
+                    {
+                        name: 'MA10',
+                        type: 'line',
+                        data: calculateMA(10),
+                        smooth: true,
+                        lineStyle: {
+                            width: 1,
+                            color: '#3498db'
+                        }
+                    }
+                ]
+            };
+            
+            klineChart.setOption(option);
+            
+            // 開始數據更新
+            startDataUpdate();
+            
+            // 窗口調整大小時重置圖表大小
+            window.addEventListener('resize', function() {
+                klineChart.resize();
+            });
+        }
+        
+        // 生成初始K線數據
+        function generateInitialData() {
+            const now = new Date();
+            currentData = [];
+            
+            // 生成30個數據點
+            for (let i = 30; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+                
+                const dateStr = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+                
+                // 生成正成長的價格數據
+                let open, close, low, high;
+                
+                if (i === 30) {
+                    // 第一天從10元開始
+                    open = basePrice;
+                    close = basePrice;
+                    low = basePrice;
+                    high = basePrice;
+                } else {
+                    // 基於前一天的收盤價，生成正成長的數據
+                    const prevClose = currentData[currentData.length - 1][2];
+                    
+                    // 正成長趨勢：70%機率上漲，30%機率小幅下跌
+                    const isUp = Math.random() < 0.7;
+                    const changePercent = isUp ? 
+                        (Math.random() * 0.05) + 0.01 :  // 上漲1%-6%
+                        -(Math.random() * 0.02);         // 下跌0%-2%
+                    
+                    open = prevClose;
+                    close = prevClose * (1 + changePercent);
+                    
+                    // 確保價格在±10%限制內
+                    const maxPrice = basePrice * 1.10;
+                    const minPrice = basePrice * 0.90;
+                    close = Math.min(Math.max(close, minPrice), maxPrice);
+                    
+                    // 生成最高價和最低價
+                    high = Math.max(open, close) * (1 + Math.random() * 0.015);
+                    low = Math.min(open, close) * (1 - Math.random() * 0.01);
+                    
+                    // 確保高低價在限制範圍內
+                    high = Math.min(high, maxPrice);
+                    low = Math.max(low, minPrice);
+                }
+                
+                // 成交量
+                const volume = Math.floor(Math.random() * 1000000) + 500000;
+                
+                currentData.push([dateStr, open, close, low, high, volume]);
+            }
+            
+            // 更新股票資訊顯示
+            updateStockInfo();
+        }
+        
+        // 計算移動平均線
+        function calculateMA(dayCount) {
+            const result = [];
+            for (let i = 0; i < currentData.length; i++) {
+                if (i < dayCount - 1) {
+                    result.push('-');
+                    continue;
+                }
+                let sum = 0;
+                for (let j = 0; j < dayCount; j++) {
+                    sum += currentData[i - j][2]; // 收盤價
+                }
+                result.push(+(sum / dayCount).toFixed(2));
+            }
+            return result;
+        }
+        
+        // 更新股票資訊顯示
+        function updateStockInfo() {
+            if (currentData.length === 0) return;
+            
+            const latestData = currentData[currentData.length - 1];
+            const openPrice = latestData[1];
+            const currentPrice = latestData[2];
+            const highPrice = Math.max(...currentData.map(item => item[4]));
+            const lowPrice = Math.min(...currentData.map(item => item[3]));
+            const totalVolume = currentData.reduce((sum, item) => sum + item[5], 0);
+            const totalTurnover = totalVolume * currentPrice;
+            
+            const change = currentPrice - openPrice;
+            const changePercent = (change / openPrice * 100).toFixed(2);
+            
+            // 更新顯示
+            document.getElementById('current-price').textContent = currentPrice.toFixed(2);
+            document.getElementById('open-price').textContent = openPrice.toFixed(2);
+            document.getElementById('high-price').textContent = highPrice.toFixed(2);
+            document.getElementById('low-price').textContent = lowPrice.toFixed(2);
+            document.getElementById('volume').textContent = totalVolume.toLocaleString();
+            document.getElementById('turnover').textContent = totalTurnover.toFixed(0).toLocaleString();
+            
+            const changeElement = document.getElementById('price-change');
+            changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent}%)`;
+            
+            // 設置顏色
+            if (change > 0) {
+                changeElement.className = 'price-up';
+                document.getElementById('current-price').className = 'price-up';
+            } else if (change < 0) {
+                changeElement.className = 'price-down';
+                document.getElementById('current-price').className = 'price-down';
+            } else {
+                changeElement.className = '';
+                document.getElementById('current-price').className = '';
+            }
+            
+            // 更新時間
+            document.getElementById('update-time').textContent = new Date().toLocaleString();
+        }
+        
+        // 開始數據更新
+        function startDataUpdate() {
+            updateInterval = setInterval(() => {
+                if (!isPlaying) return;
+                
+                // 添加新數據點
+                const lastData = currentData[currentData.length - 1];
+                const lastDate = new Date(lastData[0]);
+                lastDate.setDate(lastDate.getDate() + 1);
+                
+                const dateStr = `${lastDate.getFullYear()}-${(lastDate.getMonth()+1).toString().padStart(2, '0')}-${lastDate.getDate().toString().padStart(2, '0')}`;
+                
+                // 基於前一天收盤價生成新數據，保持正成長趨勢
+                const open = lastData[2]; // 前一天的收盤價
+                
+                // 正成長趨勢：70%機率上漲，30%機率小幅下跌
+                const isUp = Math.random() < 0.7;
+                const changePercent = isUp ? 
+                    (Math.random() * 0.03) + 0.01 :  // 上漲1%-4%
+                    -(Math.random() * 0.015);         // 下跌0%-1.5%
+                
+                let close = open * (1 + changePercent);
+                
+                // 確保價格在±10%限制內
+                const maxPrice = basePrice * 1.10;
+                const minPrice = basePrice * 0.90;
+                close = Math.min(Math.max(close, minPrice), maxPrice);
+                
+                // 生成最高價和最低價
+                let high = Math.max(open, close) * (1 + Math.random() * 0.015);
+                let low = Math.min(open, close) * (1 - Math.random() * 0.01);
+                
+                // 確保高低價在限制範圍內
+                high = Math.min(high, maxPrice);
+                low = Math.max(low, minPrice);
+                
+                // 成交量
+                const volume = Math.floor(Math.random() * 1000000) + 500000;
+                
+                // 添加新數據
+                currentData.push([dateStr, open, close, low, high, volume]);
+                
+                // 如果數據太多，移除最早的數據
+                if (currentData.length > 100) {
+                    currentData.shift();
+                }
+                
+                // 更新圖表
+                updateChart();
+                
+                // 更新股票資訊
+                updateStockInfo();
+            }, 2000); // 每2秒更新一次
+        }
+        
+        // 更新圖表
+        function updateChart() {
+            const option = klineChart.getOption();
+            
+            option.xAxis[0].data = currentData.map(item => item[0]);
+            option.series[0].data = currentData.map(item => [item[1], item[2], item[3], item[4]]);
+            option.series[1].data = calculateMA(5);
+            option.series[2].data = calculateMA(10);
+            
+            klineChart.setOption(option);
+        }
+        
+        // 頁面加載完成後初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 登入按鈕事件
+            document.getElementById('login-btn').addEventListener('click', function() {
+                const username = document.getElementById('username').value;
+                
+                if (username) {
+                    currentUser = username;
+                    document.getElementById('login-page').style.display = 'none';
+                    document.getElementById('main-content').style.display = 'block';
+                    document.getElementById('welcome-user').textContent = `歡迎, ${username}`;
+                    
+                    // 初始化圖表
+                    initChart();
+                } else {
+                    alert('請輸入您的姓名');
+                }
+            });
+            
+            // 允許按Enter鍵登入
+            document.getElementById('username').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('login-btn').click();
+                }
+            });
+            
+            // 登出按鈕事件
+            document.getElementById('logout-btn').addEventListener('click', function() {
+                currentUser = null;
+                document.getElementById('main-content').style.display = 'none';
+                document.getElementById('login-page').style.display = 'block';
+                document.getElementById('username').value = '';
+                
+                // 停止數據更新
+                clearInterval(updateInterval);
+            });
+            
+            // 播放/暫停按鈕事件
+            document.getElementById('play-pause').addEventListener('click', function() {
+                isPlaying = !isPlaying;
+                this.textContent = isPlaying ? '暫停更新' : '繼續更新';
+            });
+            
+            // 重置圖表按鈕事件
+            document.getElementById('reset-chart').addEventListener('click', function() {
+                generateInitialData();
+                updateChart();
+            });
+            
+            // 時間範圍按鈕事件
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentRange = this.getAttribute('data-range');
+                    // 在實際應用中，這裡會根據選擇的時間範圍從伺服器獲取數據
+                    // 這裡我們只是重新生成數據來模擬
+                    generateInitialData();
+                    updateChart();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
