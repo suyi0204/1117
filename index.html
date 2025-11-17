@@ -272,6 +272,39 @@
             font-weight: bold;
             margin-left: 10px;
         }
+        
+        .time-info {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .market-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
+        .market-open {
+            background: #2ecc71;
+            color: white;
+        }
+        
+        .market-closed {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .system-status {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
     </style>
 </head>
 <body>
@@ -294,8 +327,16 @@
             
             <header>
                 <h1>鴨翊股份有限公司 <span class="stock-code">4617083007</span></h1>
-                <div class="subtitle">2025年度 公司股票即時K線圖系統</div>
+                <div class="subtitle">2025年度 公司股票即時K線圖系統 
+                    <span id="market-status" class="market-status market-open">交易中</span>
+                </div>
             </header>
+
+            <div class="system-status">
+                <strong>系統狀態:</strong> 
+                <span id="next-trading-day">下次交易日: 計算中...</span> |
+                <span id="data-persistence">數據已保存</span>
+            </div>
             
             <div class="gift-announcement">
                 <h3>股東會紀念品公告</h3>
@@ -335,8 +376,8 @@
                             <span id="turnover">0</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">漲跌幅限制:</span>
-                            <span>±10%</span>
+                            <span class="info-label">上市日期:</span>
+                            <span id="ipo-date">2025-11-17</span>
                         </div>
                     </div>
                 </div>
@@ -374,12 +415,18 @@
                 </div>
             </div>
             
+            <div class="time-info">
+                真實時間: <span id="current-real-time"></span> | 
+                上市天數: <span id="trading-days">1</span>天 | 
+                數據更新頻率: 每3秒更新一次
+            </div>
+            
             <div class="time-controls">
                 <button class="time-btn active" data-range="1D">1日</button>
                 <button class="time-btn" data-range="1W">1週</button>
                 <button class="time-btn" data-range="1M">1月</button>
                 <button class="time-btn" data-range="3M">3月</button>
-                <button class="time-btn" data-range="1Y">1年</button>
+                <button class="time-btn" data-range="ALL">全部</button>
             </div>
             
             <div class="chart-container">
@@ -389,6 +436,7 @@
             <div class="controls">
                 <button id="play-pause">暫停更新</button>
                 <button id="reset-chart">重置圖表</button>
+                <button id="manual-new-day">模擬新交易日</button>
             </div>
             
             <footer>
@@ -403,18 +451,114 @@
         let klineChart;
         let isPlaying = true;
         let currentRange = '1D';
-        let basePrice = 10.0; // 從10元開始
+        let basePrice = 10.0;
         let currentData = [];
         let updateInterval;
         let currentUser = null;
+        
+        // 設定上市日期為2025年11月17日
+        const ipoDate = new Date(2025, 10, 17);
+        
+        // 從本地儲存載入數據
+        function loadStockData() {
+            const savedData = localStorage.getItem('yayi_stock_data');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                currentData = parsedData.data || [];
+                basePrice = parsedData.basePrice || 10.0;
+                console.log('已載入保存的股票數據');
+            } else {
+                console.log('無保存數據，使用初始數據');
+                generateInitialData();
+            }
+        }
+        
+        // 保存數據到本地儲存
+        function saveStockData() {
+            const dataToSave = {
+                data: currentData,
+                basePrice: basePrice,
+                lastUpdated: new Date().toISOString()
+            };
+            localStorage.setItem('yayi_stock_data', JSON.stringify(dataToSave));
+            document.getElementById('data-persistence').textContent = '數據已保存 ' + new Date().toLocaleTimeString();
+        }
+        
+        // 檢查是否需要開始新交易日
+        function checkForNewTradingDay() {
+            const now = new Date();
+            const lastDataDate = currentData.length > 0 ? 
+                new Date(currentData[currentData.length - 1][0]) : ipoDate;
+            
+            const daysDiff = Math.floor((now - lastDataDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysDiff > 0) {
+                // 跳過週末
+                let newDate = new Date(lastDataDate);
+                for (let i = 0; i < daysDiff; i++) {
+                    newDate.setDate(newDate.getDate() + 1);
+                    if (newDate.getDay() !== 0 && newDate.getDay() !== 6) {
+                        addNewTradingDay(newDate);
+                    }
+                }
+                updateChart();
+                saveStockData();
+            }
+        }
+        
+        // 添加新交易日
+        function addNewTradingDay(date) {
+            const dateStr = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            
+            const prevClose = currentData.length > 0 ? 
+                currentData[currentData.length - 1][2] : basePrice;
+            
+            // 生成新交易日的價格數據
+            const isUp = Math.random() < 0.7;
+            const changePercent = isUp ? 
+                (Math.random() * 0.03) + 0.005 : 
+                -(Math.random() * 0.015);
+            
+            const open = prevClose;
+            let close = prevClose * (1 + changePercent);
+            
+            // 確保價格在±10%限制內
+            const maxPrice = basePrice * 1.10;
+            const minPrice = basePrice * 0.90;
+            close = Math.min(Math.max(close, minPrice), maxPrice);
+            
+            const high = Math.max(open, close) * (1 + Math.random() * 0.015);
+            const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+            
+            const baseVolume = 500000;
+            const volumeMultiplier = close / basePrice;
+            const volume = Math.floor(baseVolume * volumeMultiplier * (0.8 + Math.random() * 0.4));
+            
+            currentData.push([dateStr, open, close, low, high, volume]);
+            
+            console.log(`已添加新交易日: ${dateStr}, 收盤價: ${close.toFixed(2)}`);
+        }
+        
+        // 計算下個交易日
+        function calculateNextTradingDay() {
+            const now = new Date();
+            let nextDate = new Date(now);
+            
+            do {
+                nextDate.setDate(nextDate.getDate() + 1);
+            } while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
+            
+            return nextDate.toLocaleDateString();
+        }
         
         // 初始化圖表
         function initChart() {
             const chartDom = document.getElementById('kline-chart');
             klineChart = echarts.init(chartDom);
             
-            // 生成初始數據
-            generateInitialData();
+            // 載入數據並檢查新交易日
+            loadStockData();
+            checkForNewTradingDay();
             
             // 設置圖表選項
             const option = {
@@ -439,11 +583,11 @@
                         const data = params[0].data;
                         return `
                             <div>日期: ${data[0]}</div>
-                            <div>開盤: ${data[1]}</div>
-                            <div>收盤: ${data[2]}</div>
-                            <div>最低: ${data[3]}</div>
-                            <div>最高: ${data[4]}</div>
-                            <div>成交量: ${data[5]}</div>
+                            <div>開盤: ${data[1].toFixed(2)}</div>
+                            <div>收盤: ${data[2].toFixed(2)}</div>
+                            <div>最低: ${data[3].toFixed(2)}</div>
+                            <div>最高: ${data[4].toFixed(2)}</div>
+                            <div>成交量: ${data[5].toLocaleString()}</div>
                         `;
                     }
                 },
@@ -471,7 +615,10 @@
                         }
                     },
                     axisLabel: {
-                        color: '#2c3e50'
+                        color: '#2c3e50',
+                        formatter: function(value) {
+                            return value.split('-').slice(1).join('-');
+                        }
                     },
                     splitLine: {
                         show: false
@@ -488,7 +635,8 @@
                         }
                     },
                     axisLabel: {
-                        color: '#2c3e50'
+                        color: '#2c3e50',
+                        formatter: '{value}'
                     },
                     splitLine: {
                         lineStyle: {
@@ -540,9 +688,10 @@
                         data: calculateMA(5),
                         smooth: true,
                         lineStyle: {
-                            width: 1,
+                            width: 2,
                             color: '#e67e22'
-                        }
+                        },
+                        symbol: 'none'
                     },
                     {
                         name: 'MA10',
@@ -550,9 +699,10 @@
                         data: calculateMA(10),
                         smooth: true,
                         lineStyle: {
-                            width: 1,
+                            width: 2,
                             color: '#3498db'
-                        }
+                        },
+                        symbol: 'none'
                     }
                 ]
             };
@@ -570,60 +720,75 @@
         
         // 生成初始K線數據
         function generateInitialData() {
-            const now = new Date();
             currentData = [];
+            const tradingDays = calculateTradingDays();
             
-            // 生成30個數據點
-            for (let i = 30; i >= 0; i--) {
-                const date = new Date(now);
-                date.setDate(date.getDate() - i);
+            let currentDate = new Date(ipoDate);
+            let prevClose = basePrice;
+            
+            for (let i = 0; i < tradingDays; i++) {
+                while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
                 
-                const dateStr = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+                const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth()+1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
                 
-                // 生成正成長的價格數據
                 let open, close, low, high;
                 
-                if (i === 30) {
-                    // 第一天從10元開始
+                if (i === 0) {
                     open = basePrice;
                     close = basePrice;
                     low = basePrice;
                     high = basePrice;
                 } else {
-                    // 基於前一天的收盤價，生成正成長的數據
-                    const prevClose = currentData[currentData.length - 1][2];
-                    
-                    // 正成長趨勢：70%機率上漲，30%機率小幅下跌
                     const isUp = Math.random() < 0.7;
                     const changePercent = isUp ? 
-                        (Math.random() * 0.05) + 0.01 :  // 上漲1%-6%
-                        -(Math.random() * 0.02);         // 下跌0%-2%
+                        (Math.random() * 0.03) + 0.005 : 
+                        -(Math.random() * 0.015);
                     
                     open = prevClose;
                     close = prevClose * (1 + changePercent);
                     
-                    // 確保價格在±10%限制內
                     const maxPrice = basePrice * 1.10;
                     const minPrice = basePrice * 0.90;
                     close = Math.min(Math.max(close, minPrice), maxPrice);
                     
-                    // 生成最高價和最低價
                     high = Math.max(open, close) * (1 + Math.random() * 0.015);
                     low = Math.min(open, close) * (1 - Math.random() * 0.01);
                     
-                    // 確保高低價在限制範圍內
-                    high = Math.min(high, maxPrice);
-                    low = Math.max(low, minPrice);
+                    high = Math.min(Math.max(high, Math.max(open, close)), maxPrice);
+                    low = Math.max(Math.min(low, Math.min(open, close)), minPrice);
                 }
                 
-                // 成交量
-                const volume = Math.floor(Math.random() * 1000000) + 500000;
+                const baseVolume = 500000;
+                const volumeMultiplier = close / basePrice;
+                const volume = Math.floor(baseVolume * volumeMultiplier * (0.8 + Math.random() * 0.4));
                 
                 currentData.push([dateStr, open, close, low, high, volume]);
+                prevClose = close;
+                
+                currentDate.setDate(currentDate.getDate() + 1);
             }
             
-            // 更新股票資訊顯示
             updateStockInfo();
+            updateRealTimeInfo();
+            saveStockData();
+        }
+        
+        // 計算交易日數量
+        function calculateTradingDays() {
+            const now = new Date();
+            let tradingDays = 0;
+            let currentDate = new Date(ipoDate);
+            
+            while (currentDate <= now) {
+                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                    tradingDays++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            return Math.max(1, tradingDays);
         }
         
         // 計算移動平均線
@@ -636,7 +801,7 @@
                 }
                 let sum = 0;
                 for (let j = 0; j < dayCount; j++) {
-                    sum += currentData[i - j][2]; // 收盤價
+                    sum += currentData[i - j][2];
                 }
                 result.push(+(sum / dayCount).toFixed(2));
             }
@@ -658,18 +823,16 @@
             const change = currentPrice - openPrice;
             const changePercent = (change / openPrice * 100).toFixed(2);
             
-            // 更新顯示
             document.getElementById('current-price').textContent = currentPrice.toFixed(2);
             document.getElementById('open-price').textContent = openPrice.toFixed(2);
             document.getElementById('high-price').textContent = highPrice.toFixed(2);
             document.getElementById('low-price').textContent = lowPrice.toFixed(2);
             document.getElementById('volume').textContent = totalVolume.toLocaleString();
-            document.getElementById('turnover').textContent = totalTurnover.toFixed(0).toLocaleString();
+            document.getElementById('turnover').textContent = Math.round(totalTurnover).toLocaleString();
             
             const changeElement = document.getElementById('price-change');
             changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent}%)`;
             
-            // 設置顏色
             if (change > 0) {
                 changeElement.className = 'price-up';
                 document.getElementById('current-price').className = 'price-up';
@@ -681,8 +844,29 @@
                 document.getElementById('current-price').className = '';
             }
             
-            // 更新時間
             document.getElementById('update-time').textContent = new Date().toLocaleString();
+        }
+        
+        // 更新實時資訊
+        function updateRealTimeInfo() {
+            const now = new Date();
+            document.getElementById('current-real-time').textContent = now.toLocaleString();
+            document.getElementById('trading-days').textContent = calculateTradingDays();
+            document.getElementById('next-trading-day').textContent = `下次交易日: ${calculateNextTradingDay()}`;
+            
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const isTradingHours = (hours > 9 || (hours === 9 && minutes >= 0)) && 
+                                  (hours < 13 || (hours === 13 && minutes <= 30));
+            
+            const marketStatus = document.getElementById('market-status');
+            if (isTradingHours) {
+                marketStatus.textContent = '交易中';
+                marketStatus.className = 'market-status market-open';
+            } else {
+                marketStatus.textContent = '已收盤';
+                marketStatus.className = 'market-status market-closed';
+            }
         }
         
         // 開始數據更新
@@ -690,54 +874,42 @@
             updateInterval = setInterval(() => {
                 if (!isPlaying) return;
                 
-                // 添加新數據點
-                const lastData = currentData[currentData.length - 1];
-                const lastDate = new Date(lastData[0]);
-                lastDate.setDate(lastDate.getDate() + 1);
+                updateRealTimeInfo();
                 
-                const dateStr = `${lastDate.getFullYear()}-${(lastDate.getMonth()+1).toString().padStart(2, '0')}-${lastDate.getDate().toString().padStart(2, '0')}`;
+                const now = new Date();
+                const tradingDays = calculateTradingDays();
                 
-                // 基於前一天收盤價生成新數據，保持正成長趨勢
-                const open = lastData[2]; // 前一天的收盤價
-                
-                // 正成長趨勢：70%機率上漲，30%機率小幅下跌
-                const isUp = Math.random() < 0.7;
-                const changePercent = isUp ? 
-                    (Math.random() * 0.03) + 0.01 :  // 上漲1%-4%
-                    -(Math.random() * 0.015);         // 下跌0%-1.5%
-                
-                let close = open * (1 + changePercent);
-                
-                // 確保價格在±10%限制內
-                const maxPrice = basePrice * 1.10;
-                const minPrice = basePrice * 0.90;
-                close = Math.min(Math.max(close, minPrice), maxPrice);
-                
-                // 生成最高價和最低價
-                let high = Math.max(open, close) * (1 + Math.random() * 0.015);
-                let low = Math.min(open, close) * (1 - Math.random() * 0.01);
-                
-                // 確保高低價在限制範圍內
-                high = Math.min(high, maxPrice);
-                low = Math.max(low, minPrice);
-                
-                // 成交量
-                const volume = Math.floor(Math.random() * 1000000) + 500000;
-                
-                // 添加新數據
-                currentData.push([dateStr, open, close, low, high, volume]);
-                
-                // 如果數據太多，移除最早的數據
-                if (currentData.length > 100) {
-                    currentData.shift();
+                if (tradingDays > currentData.length) {
+                    checkForNewTradingDay();
+                    updateChart();
+                    updateStockInfo();
+                } else if (currentData.length > 0) {
+                    const hours = now.getHours();
+                    const minutes = now.getMinutes();
+                    const isTradingHours = (hours > 9 || (hours === 9 && minutes >= 0)) && 
+                                          (hours < 13 || (hours === 13 && minutes <= 30));
+                    
+                    if (isTradingHours) {
+                        const latestData = [...currentData[currentData.length - 1]];
+                        const currentPrice = latestData[2];
+                        
+                        const changePercent = (Math.random() - 0.5) * 0.01;
+                        const newPrice = currentPrice * (1 + changePercent);
+                        
+                        latestData[2] = newPrice;
+                        latestData[4] = Math.max(latestData[4], newPrice);
+                        latestData[3] = Math.min(latestData[3], newPrice);
+                        latestData[5] += Math.floor(Math.random() * 10000);
+                        
+                        currentData[currentData.length - 1] = latestData;
+                        
+                        updateChart();
+                        updateStockInfo();
+                        saveStockData();
+                    }
                 }
                 
-                // 更新圖表
-                updateChart();
-                
-                // 更新股票資訊
-                updateStockInfo();
-            }, 2000); // 每2秒更新一次
+            }, 3000);
         }
         
         // 更新圖表
@@ -764,51 +936,53 @@
                     document.getElementById('main-content').style.display = 'block';
                     document.getElementById('welcome-user').textContent = `歡迎, ${username}`;
                     
-                    // 初始化圖表
                     initChart();
                 } else {
                     alert('請輸入您的姓名');
                 }
             });
             
-            // 允許按Enter鍵登入
             document.getElementById('username').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     document.getElementById('login-btn').click();
                 }
             });
             
-            // 登出按鈕事件
             document.getElementById('logout-btn').addEventListener('click', function() {
                 currentUser = null;
                 document.getElementById('main-content').style.display = 'none';
                 document.getElementById('login-page').style.display = 'block';
                 document.getElementById('username').value = '';
                 
-                // 停止數據更新
                 clearInterval(updateInterval);
             });
             
-            // 播放/暫停按鈕事件
             document.getElementById('play-pause').addEventListener('click', function() {
                 isPlaying = !isPlaying;
                 this.textContent = isPlaying ? '暫停更新' : '繼續更新';
             });
             
-            // 重置圖表按鈕事件
             document.getElementById('reset-chart').addEventListener('click', function() {
+                localStorage.removeItem('yayi_stock_data');
                 generateInitialData();
                 updateChart();
             });
             
-            // 時間範圍按鈕事件
+            document.getElementById('manual-new-day').addEventListener('click', function() {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                addNewTradingDay(tomorrow);
+                updateChart();
+                updateStockInfo();
+                saveStockData();
+                alert('已模擬添加新交易日');
+            });
+            
             document.querySelectorAll('.time-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
                     currentRange = this.getAttribute('data-range');
-                    // 在實際應用中，這裡會根據選擇的時間範圍從伺服器獲取數據
-                    // 這裡我們只是重新生成數據來模擬
                     generateInitialData();
                     updateChart();
                 });
